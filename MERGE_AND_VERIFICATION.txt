@@ -1,0 +1,37 @@
+DocuMind AI — authentication correction overlay
+
+Source: user-provided documind-ai(1).zip (2026-11-17)
+
+WHAT CHANGED
+1. GlobalExceptionHandler: BadCredentialsException now yields HTTP 401 instead of generic HTTP 500. Covers missing refresh token and bad login credentials.
+2. AuthService: duplicate email registration now produces HTTP 409 with generic REGISTRATION_FAILED code, instead of BadCredentialsException incorrectly propagated as 500.
+3. JwtAuthenticationFilter: requests lacking Authorization pass into the Spring Security authorization layer (which rejects protected URLs); invalid/revoked tokens receive 401 via the filter rather than uncaught exceptions. Public routes remain excluded. Tenant context clearing retained.
+4. DocumindApplication: enables existing MVC CORS configuration in Spring Security; defines HTTP 401 authentication entry point; removes CSRF bypass from logout, while keeping registration/login/refresh exceptions.
+5. RegistrationTest: updates the two duplicate-registration assertions for ApiException.
+6. frontend/src/services/api.ts: show structured server error messages rather than generic Axios status messages.
+
+IMPORTANT
+- This is a source-level patch; NOT validated by a successful Maven or Vite build here (tools/dependencies unavailable).
+- Before merging, back up/commit your local project. This is an overlay for the exact uploaded ZIP; if local files have diverged, compare diffs before overwriting.
+- This does not guarantee registration success on your running Mac. Check backend logs and test real auth flows.
+- Your frontend auto-calls /auth/refresh on initial page load even when no cookie exists. That is harmless when 401 is handled correctly, but may show an expected 401 in browser devtools.
+- For cookie-based logout, CSRF token issuance/sending must be verified end to end; do not disable CSRF globally.
+
+MAC MERGE
+cd ~/documind-ai
+tar -czf ~/Downloads/documind-before-auth-fix.tar.gz --exclude='node_modules' --exclude='target' --exclude='.git' .
+unzip -l ~/Downloads/documind-ai-auth-corrections.zip
+unzip -o ~/Downloads/documind-ai-auth-corrections.zip -d ~/documind-ai
+cd ~/documind-ai/backend && ./mvnw clean test
+# Restart backend in a separate terminal after stopping its old process:
+cd ~/documind-ai/backend && ./mvnw spring-boot:run
+# Frontend in another terminal:
+cd ~/documind-ai/frontend && npm run build
+
+VERIFY
+curl -i http://localhost:8081/api/v1/actuator/health
+# send invalid registration payload: expect 400, not 500
+curl -i -X POST http://localhost:8081/api/v1/auth/register -H 'Content-Type: application/json' -d '{}'
+# Missing refresh cookie: expect 401, not 500
+curl -i -X POST http://localhost:8081/api/v1/auth/refresh
+# Browser: valid registration, duplicate registration, login, refresh, protected endpoints, logout

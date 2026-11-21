@@ -1,0 +1,21 @@
+spring:
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: create-drop
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    com.documind: INFO
+    org.hibernate: WARN
+    org.flywaydb: WARN
+
+management:
+  endpoint:
+    health:
+      show-details: always

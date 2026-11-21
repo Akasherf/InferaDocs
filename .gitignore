@@ -1,0 +1,130 @@
+# =============================================================================
+# DocuMind AI - Git Ignore Rules
+# =============================================================================
+
+# --- Java / Maven ---
+/backend/target/
+/backend/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# --- Maven Wrapper ---
+/backend/.mvn/wrapper/maven-wrapper.properties
+
+# --- IDE ---
+/.idea/
+/*.iml
+/*.ipr
+/*.iws
+/.vscode/
+/*.swp
+/.project
+/.classpath
+/.settings/
+/*.launch
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Environment ---
+/.env
+/.env.local
+/.env.*.local
+!/.env.example
+
+# --- Logs ---
+*.log
+logs/
+/backend/logs/
+
+# --- Test ---
+/backend/target/surefire-reports/
+/backend/target/failsafe-reports/
+/backend/target/jacoco*/
+coverage/
+.nyc_output/
+
+# --- Frontend ---
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+/frontend/.vite/
+/frontend/*.local
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.*.local
+
+# --- Docker ---
+/infrastructure/postgres_data/
+/infrastructure/redis_data/
+/infrastructure/minio_data/
+
+# --- Coverage ---
+*.lcov
+*.cobertura
+
+# --- Temporary ---
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# --- Package Managers ---
+/backend/.m2/
+~/.m2/repository/ (not in project)
+
+# --- OS Specific ---
+*.sw[a-z]
+*~
+# IDE and macOS
+.idea/
+.DS_Store
+
+# Build artifacts
+**/target/
+**/node_modules/
+**/dist/
+**/coverage/
+
+# Development backups
+.branding-backups/
+stage10-backups/
+*.backup
+*.bak
+
+# Local credentials
+.env
+.env.*
+!.env.example
+!**/.env.example
+**/application-local.yml
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# Local patch and migration backups
+*.before-*
+*.pre-v*-backup
+*.stage*-backup
+*.stage-async-backup
+*.security-prompt-backup
+*.timeout-backup
+*.backup-*
+
+# Playwright generated reports
+frontend/playwright-report/
+frontend/test-results/
