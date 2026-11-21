@@ -193,12 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     const response = await authApi.sessions();
     if (response.success && response.data) {
       setState(prev => ({ ...prev, sessions: response.data! }));
     }
-  };
+  }, []);
 
   const revokeSession = async (sessionId: string) => {
     const response = await authApi.revokeSession(sessionId);

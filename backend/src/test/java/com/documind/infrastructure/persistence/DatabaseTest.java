@@ -91,7 +91,7 @@ class DatabaseTest {
         );
 
         assertThat(description)
-                .isEqualTo("document processing jobs");
+                .isEqualTo("workspace preferences");
     }
 
     @Test

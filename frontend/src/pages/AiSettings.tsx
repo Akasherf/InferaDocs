@@ -7,10 +7,11 @@ export function AiSettings(){
  const [models,setModels]=useState<string[]>([]);const [modelsAvailable,setModelsAvailable]=useState<boolean|null>(null);
  const [error,setError]=useState(''); const [message,setMessage]=useState(''); const [saving,setSaving]=useState(false);
  const admin=org?.currentUserMembership.role==='OWNER'||org?.currentUserMembership.role==='ADMIN';
- useEffect(()=>{setPrefs(null);setModels([]);setModelsAvailable(null);setError('');setMessage('');if(!org)return;
-   void workspaceApi.models(org.id).then(r=>{setModels(r.data?.models??[]);setModelsAvailable(r.data?.available??false);}).catch(()=>setModelsAvailable(false));
-   void workspaceApi.get(org.id).then(r=>{if(r.data)setPrefs(r.data);else setError(r.error?.message||'Unable to load settings')}).catch((e:unknown)=>setError(e instanceof Error?e.message:'Unable to load settings'));
- },[org?.id]);
+ const orgId=org?.id;
+ useEffect(()=>{setPrefs(null);setModels([]);setModelsAvailable(null);setError('');setMessage('');if(!orgId)return;
+   void workspaceApi.models(orgId).then(r=>{setModels(r.data?.models??[]);setModelsAvailable(r.data?.available??false);}).catch(()=>setModelsAvailable(false));
+   void workspaceApi.get(orgId).then(r=>{if(r.data)setPrefs(r.data);else setError(r.error?.message||'Unable to load settings')}).catch((e:unknown)=>setError(e instanceof Error?e.message:'Unable to load settings'));
+ },[orgId]);
  const save=async(e:React.FormEvent)=>{e.preventDefault();if(!org||!prefs||!admin)return;
  setSaving(true);setError('');setMessage('');try{const r=await workspaceApi.save(org.id,prefs);if(!r.data)throw new Error(r.error?.message||'Save failed');setPrefs(r.data);setMessage('Saved. New AI answers use these settings.');}
  catch(e){setError(e instanceof Error?e.message:'Save failed');}finally{setSaving(false);}};

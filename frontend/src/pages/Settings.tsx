@@ -13,7 +13,7 @@ export function Settings() {
   const org = currentOrganization;
   const canEdit = org?.currentUserMembership.role === 'OWNER' || org?.currentUserMembership.role === 'ADMIN';
   useEffect(() => { setName(org?.name ?? ''); setError(''); setNotice(''); }, [org?.id, org?.name]);
-  useEffect(() => { void fetchSessions().catch(() => setError('Unable to load sessions')); }, []);
+  useEffect(() => { void fetchSessions().catch(() => setError('Unable to load sessions')); }, [fetchSessions]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();

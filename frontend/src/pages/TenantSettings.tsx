@@ -11,12 +11,13 @@ export function TenantSettings() {
   const [error,setError] = useState('');
   const [message,setMessage] = useState('');
   const admin = org?.currentUserMembership.role === 'OWNER' || org?.currentUserMembership.role === 'ADMIN';
+  const orgId = org?.id;
   useEffect(() => { setPrefs(null); setError(''); setPreview(null);
-    if (!org) return;
-    void workspaceApi.get(org.id).then(r => { if(r.data) setPrefs(r.data); else setError(r.error?.message || 'Unable to load preferences'); })
+    if (!orgId) return;
+    void workspaceApi.get(orgId).then(r => { if(r.data) setPrefs(r.data); else setError(r.error?.message || 'Unable to load preferences'); })
       .catch((e:unknown) => setError(e instanceof Error ? e.message : 'Unable to load preferences'));
-    if (admin) void workspaceApi.retentionPreview(org.id).then(r=>setPreview(r.data ?? null)).catch(()=>{});
-  },[org?.id,admin]);
+    if (admin) void workspaceApi.retentionPreview(orgId).then(r=>setPreview(r.data ?? null)).catch(()=>{});
+  },[orgId,admin]);
   const save = async (e:React.FormEvent) => {e.preventDefault(); if(!org || !prefs || !admin)return;
     setLoading(true);setError('');setMessage('');
     try { const r=await workspaceApi.save(org.id,prefs); if(!r.data)throw new Error(r.error?.message || 'Unable to save');

@@ -7,9 +7,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-documind}
       POSTGRES_USER: ${POSTGRES_USER:-documind}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-documind}
-      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "${POSTGRES_HOST_PORT:-5434}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -28,7 +27,7 @@ services:
     container_name: documind-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "${REDIS_HOST_PORT:-6380}:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
     volumes:
       - redis_data:/data
     healthcheck:

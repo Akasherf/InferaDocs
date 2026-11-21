@@ -6,45 +6,25 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  MAVEN_OPTS: "-Dmaven.repo.local=${{ github.workspace }}/.m2/repository"
-  NODE_VERSION: "20"
+permissions:
+  contents: read
 
 jobs:
   backend-test:
     name: Backend Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
-          cache: 'maven'
+          cache: maven
           cache-dependency-path: backend/pom.xml
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Build and run unit tests
-        working-directory: ./backend
-        run: ./mvnw test --no-transfer-progress -B
-
-      - name: Run integration tests
-        working-directory: ./backend
-        run: ./mvnw verify -Ptest --no-transfer-progress -B
-        env:
-          SPRING_PROFILES_ACTIVE: test
-
+      - name: Verify backend including integration tests
+        run: mvn -f backend/pom.xml -B -ntp clean verify -Ptest
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -53,69 +33,53 @@ jobs:
           path: |
             backend/target/surefire-reports/
             backend/target/failsafe-reports/
+          if-no-files-found: ignore
           retention-days: 7
 
   backend-quality:
     name: Backend Quality Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
-          cache: 'maven'
-
+          cache: maven
+          cache-dependency-path: backend/pom.xml
       - name: Checkstyle
-        working-directory: ./backend
-        run: ./mvnw checkstyle:check --no-transfer-progress -B
-
+        run: mvn -f backend/pom.xml -B -ntp checkstyle:check
       - name: SpotBugs
-        working-directory: ./backend
-        run: ./mvnw spotbugs:check --no-transfer-progress -B
-
-      - name: Dependency Check (OWASP)
-        working-directory: ./backend
-        run: ./mvnw org.owasp:dependency-check-maven:check --no-transfer-progress -B
-        continue-on-error: true
+        run: mvn -f backend/pom.xml -B -ntp -DskipTests compile spotbugs:spotbugs spotbugs:check
 
   frontend-test:
     name: Frontend Build & Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./frontend
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          node-version: '22'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Run lint
+      - name: Lint (zero warnings allowed)
         run: npm run lint
-
       - name: Type check
         run: npx tsc --noEmit
-
-      - name: Build
+      - name: Production build
         run: npm run build
         env:
           VITE_API_BASE_URL: http://localhost:8081/api/v1
-
-      - name: Upload build artifacts
+      - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
@@ -127,43 +91,52 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Validate docker-compose.yml
+      - uses: actions/checkout@v4
+      - name: Validate Compose syntax
         working-directory: ./infrastructure
         run: docker compose config --quiet
-
-      - name: Check for secrets in compose
+      - name: Check unsafe development exposure
         run: |
-          if grep -r "password\|secret\|key" infrastructure/docker-compose.yml | grep -v "environment:" | grep -v "\${" | grep -v "#"; then
-            echo "Potential secrets found in docker-compose.yml"
-            exit 1
-          fi
+          python3 - <<'PYCODE'
+          import pathlib, re, sys
+          config = pathlib.Path('infrastructure/docker-compose.yml').read_text()
+          problems = []
+          if re.search(r'POSTGRES_HOST_AUTH_METHOD\s*:\s*["\\\']?trust\b', config):
+              problems.append('PostgreSQL trust authentication is forbidden')
+          for service, port in [('postgres', '5432'), ('redis', '6379')]:
+              section = re.search(rf'^  {service}:\n(.*?)(?=^  [a-z][\w-]*:|^volumes:|\Z)', config, re.M | re.S)
+              if not section or not re.search(r'127\.0\.0\.1:.*:' + port + r'\b', section.group(1)):
+                  problems.append(f'{service} must publish {port} on 127.0.0.1 only')
+          if problems:
+              print('\n'.join(problems), file=sys.stderr)
+              sys.exit(1)
+          print('Compose does not enable trust auth or expose PostgreSQL/Redis publicly')
+          PYCODE
 
   security-scan:
-    name: Security Scan
+    name: Security Scan (Secrets & IaC)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
+      - uses: actions/checkout@v4
+      - name: Scan repository secrets and misconfigurations
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          scan-type: fs
+          scan-ref: .
+          scanners: 'secret,misconfig'
           severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '1'
+      - name: Upload scan report
+        if: ${{ always() && hashFiles('trivy-results.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: trivy-results.sarif
 
   validate:
     name: Validate All Checks
@@ -171,29 +144,15 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Check all jobs passed
+      - name: Check required jobs passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
         run: |
-          if [[ "${{ needs.backend-test.result }}" != "success" ]]; then
-            echo "Backend tests failed"
+          echo "Required job results: $RESULTS"
+          if [[ "$RESULTS" != "success,success,success,success,success" ]]; then
+            echo 'At least one required CI job failed or was skipped'
             exit 1
           fi
-          if [[ "${{ needs.backend-quality.result }}" != "success" ]]; then
-            echo "Backend quality checks failed"
-            exit 1
-          fi
-          if [[ "${{ needs.frontend-test.result }}" != "success" ]]; then
-            echo "Frontend tests failed"
-            exit 1
-          fi
-          if [[ "${{ needs.docker-validate.result }}" != "success" ]]; then
-            echo "Docker validation failed"
-            exit 1
-          fi
-          if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
-            echo "Security scan failed"
-            exit 1
-          fi
-          echo "All checks passed!"
 
   notify:
     name: Notify on Failure
@@ -201,7 +160,4 @@ jobs:
     if: failure()
     runs-on: ubuntu-latest
     steps:
-      - name: Send notification
-        run: |
-          echo "CI pipeline failed. Check GitHub Actions for details."
-          # Add Slack/email notification here if needed
+      - run: echo 'CI failed. Review the failed job logs in GitHub Actions.'

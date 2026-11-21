@@ -14,7 +14,7 @@ hs_err_pid*
 replay_pid*
 
 # --- Maven Wrapper ---
-/backend/.mvn/wrapper/maven-wrapper.properties
+# Commit Maven Wrapper properties; only the wrapper JAR is ignored.
 
 # --- IDE ---
 /.idea/
@@ -128,3 +128,6 @@ logs/
 # Playwright generated reports
 frontend/playwright-report/
 frontend/test-results/
+
+# Local CI repair backups
+.ci-fix-backups/

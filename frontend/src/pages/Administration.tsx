@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { workspaceApi, type Overview } from '@/services/workspace';
@@ -8,8 +8,9 @@ const names:Record<string,string>={documents:'Active documents',chunks:'Indexed 
 export function Administration(){
  const {currentOrganization:org}=useAuth();const [overview,setOverview]=useState<Overview|null>(null);const [error,setError]=useState('');const [loading,setLoading]=useState(false);
  const admin=org?.currentUserMembership.role==='OWNER'||org?.currentUserMembership.role==='ADMIN';
- const load=async()=>{if(!org||!admin)return;setLoading(true);setError('');try{const r=await workspaceApi.overview(org.id);if(!r.data)throw new Error(r.error?.message||'Unable to load metrics');setOverview(r.data);}catch(e){setError(e instanceof Error?e.message:'Unable to load metrics');}finally{setLoading(false);}};
- useEffect(()=>{setOverview(null);void load();},[org?.id,admin]);
+ const orgId=org?.id;
+ const load=useCallback(async()=>{if(!orgId||!admin)return;setLoading(true);setError('');try{const r=await workspaceApi.overview(orgId);if(!r.data)throw new Error(r.error?.message||'Unable to load metrics');setOverview(r.data);}catch(e){setError(e instanceof Error?e.message:'Unable to load metrics');}finally{setLoading(false);}},[orgId,admin]);
+ useEffect(()=>{setOverview(null);void load();},[load]);
  return <div className="max-w-6xl mx-auto pb-12 space-y-6">
   <div className="flex flex-wrap gap-4 justify-between"><div><h1 className="text-2xl font-bold text-white">Workspace Administration</h1><p className="text-dark-400">Real organization-scoped operational counters and recent audit events.</p></div><button className="btn-primary" disabled={loading||!admin} onClick={()=>void load()}>{loading?'Refreshing…':'Refresh metrics'}</button></div>
   {org && <p className="text-sm text-dark-400">Workspace: {org.name} · Role: {org.currentUserMembership.role}</p>}
